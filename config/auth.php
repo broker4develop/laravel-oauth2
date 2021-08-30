@@ -112,4 +112,12 @@ return [
 
     'password_timeout' => 10800,
 
+    /*
+    |--------------------------------------------------------------------------
+    | OAUTH 2.0 Password Grant ID , SECRET
+    |--------------------------------------------------------------------------
+    |
+    */
+    'grant_id' => env('PASSWORD_GRANT_ID'),
+    'grant_secret' => env('PASSWORD_GRANT_SECRET'),
 ];

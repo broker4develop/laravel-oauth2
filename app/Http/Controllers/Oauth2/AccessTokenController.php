@@ -3,60 +3,48 @@
 namespace App\Http\Controllers\Oauth2;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
+use App\Models\Json;
 use GuzzleHttp\Client;
+use GuzzleHttp\Exception\GuzzleException;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 
 class AccessTokenController extends Controller
 {
-    public function getAccessToken(Request $request)
+    /**
+     * @param Request $request
+     * @return JsonResponse
+     * @throws GuzzleException
+     */
+    public function getAccessToken(Request $request): JsonResponse
     {
         $http = new Client;
-        $user = new User();
-
-        $user = $user->where('email',$request->email)->first();
-        if (empty($user)) {
-            return dd('not Found');
-        }
 
         try {
             $requestOauth2Token = $http->post(config('app.url').'/oauth/token', [
                 'form_params' => [
                     'grant_type' => 'password',
-                    'client_id' => env('auth.grant_id'),
+                    'client_id' => config('auth.grant_id'),
                     'client_secret' => config('auth.grant_secret'),
                     'username' => $request->email,
                     'password' => $request->password,
                     'scope' => '',
                 ],
             ]);
-        } catch(\Exception $ex) {
-            return dd('notAuthorized');
+        } catch(\Exception $error) {
+            return (new Json())->apiResponseJsonError($error->getCode(), $error->getMessage());
         }
-
-        $userData = array(
-            'id' => $user->uuid,
-            'fullName' => $user->name,
-            'newsletter' => $user->newsletter,
-            'profile' => Storage::disk('profile')->url($user->profile),
-        );
 
         $tokenJson = json_decode((string) $requestOauth2Token->getBody(), true);
 
-        $tokenJsonForReturn = [
-            'tokenType' => $tokenJson['token_type'],
-            'expiresIn' => $tokenJson['expires_in'],
-            'accessToken' => $tokenJson['access_token'],
-            'refreshToken' => $tokenJson['refresh_token'],
+        $tokenJsonForResponse = [
+            'user_id' => $request->email,
+            'token_type' => $tokenJson['token_type'],
+            'expires' => $tokenJson['expires_in'],
+            'access_token' => $tokenJson['access_token'],
+            'refresh_token' => $tokenJson['refresh_token'],
         ];
-        $merge = array_merge($userData,$tokenJsonForReturn);
 
-        return response()->json([
-            'errorClass' => 'noError',
-            'resultCode' => 'ok',
-            'errorText' => '',
-            'reply' => $merge,
-        ]);
+        return (new Json())->apiResponseJson('ok', $tokenJsonForResponse);
     }
 }
